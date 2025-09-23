@@ -159,3 +159,61 @@ describe('Combined Features', ()=> {
 		assert(myComputed.value === 40, 'computed value should update with new value')
 	})
 })
+
+// ref with array
+describe('ref with array', ()=> {
+	it('should create a reactive array', ()=> {
+		const myArray = ref([1, 2, 3])
+		assert(Array.isArray(myArray.value), 'ref should hold an array')
+		assert(myArray.value.length === 3, 'initial array length should be correct')
+	})
+
+	it('should react to array element changes', ()=> {
+		const myArray = ref([1, 2, 3])
+		const myComputed = computed(()=> myArray.value[0] + myArray.value[2])
+		assert(myComputed.value === 4, 'computed should work with initial array elements')
+
+		myArray.value[0] = 10
+		assert(myComputed.value === 13, 'computed should react to element change')
+	})
+
+	it('should react to array length changes with push', ()=> {
+		const myArray = ref([1, 2])
+		const myComputed = computed(()=> myArray.value.length)
+		assert(myComputed.value === 2, 'initial length is correct')
+
+		myArray.value.push(3)
+		assert(myComputed.value === 3, 'computed should react to push')
+	})
+
+	it('should react to array length changes with pop', ()=> {
+		const myArray = ref([1, 2, 3])
+		const myComputed = computed(()=> myArray.value.length)
+		assert(myComputed.value === 3, 'initial length is correct')
+
+		myArray.value.pop()
+		assert(myComputed.value === 2, 'computed should react to pop')
+	})
+
+	it('should react to array content changes with splice', ()=> {
+		const myArray = ref([1, 2, 3, 4])
+		const myComputed = computed(()=> myArray.value.join(','))
+		assert(myComputed.value === '1,2,3,4', 'initial computed is correct')
+
+		// replaces 2,3 with 5,6 -> [1, 5, 6, 4]
+		myArray.value.splice(1, 2, 5, 6)
+		assert(myComputed.value === '1,5,6,4', 'computed should react to splice')
+	})
+
+	it('should watch for array changes', ()=> {
+		const myArray = ref([1])
+		let watchedLength = -1
+
+		watch(()=> myArray.value.length, (newLength)=> {
+			watchedLength = newLength
+		})
+
+		myArray.value.push(2)
+		assert(watchedLength === 2, 'watch should pick up array length change')
+	})
+})

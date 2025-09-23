@@ -1,17 +1,63 @@
+// For internal use only, never expose this function directly
 const reactive = (obj)=> {
 	if (typeof obj !== 'object' || obj === null){
 		return obj
 	}
 
-	// First, make nested objects reactive
 	for (const key in obj){
 		if (typeof obj[key] === 'object' && obj[key] !== null){
 			obj[key] = reactive(obj[key])
 		}
 	}
 
+	const isArray = Array.isArray(obj)
+	const reactiveArrayMethods = ['push', 'pop', 'shift', 'unshift', 'splice', 'reverse', 'sort']
+
 	return new Proxy(obj, {
 		get(target, key){
+			// Intercept array methods
+			if (isArray && typeof target[key] === 'function' && reactiveArrayMethods.includes(key)){
+				return function(...args){
+					const result = Array.prototype[key].apply(target, args)
+
+					// Keep track of triggered effects to avoid duplicates
+					const triggeredEffects = new Set()
+
+					// Notify length change
+					if (target.__subscribers && target.__subscribers.has('length')){
+						const lengthEffects = target.__subscribers.get('length')
+						lengthEffects.forEach((effect)=> {
+							triggeredEffects.add(effect)
+							effect()
+						})
+					}
+
+					// Only notify index-based subscribers when necessary
+					// This is more selective than re-running all effects
+					if (target.__subscribers){
+						// For numeric indices only
+						target.__subscribers.forEach((effects, propKey)=> {
+							// Already handled length subscribers
+							if (propKey === 'length'){
+								return
+							}
+
+							// Only trigger effects for numeric indices or specific properties
+							if (!isNaN(Number(propKey))){
+								effects.forEach((effect)=> {
+									if (!triggeredEffects.has(effect)){
+										triggeredEffects.add(effect)
+										effect()
+									}
+								})
+							}
+						})
+					}
+
+					return result
+				}
+			}
+
 			const value = target[key]
 			// Track access
 			if (currentEffect){
@@ -30,17 +76,24 @@ const reactive = (obj)=> {
 			const oldValue = target[key]
 			if (oldValue === value){ return true }
 
-			// Make new nested objects reactive
 			if (typeof value === 'object' && value !== null){
 				target[key] = reactive(value)
 			} else {
 				target[key] = value
 			}
 
-			// Trigger updates
 			if (target.__subscribers && target.__subscribers.has(key)){
 				[...target.__subscribers.get(key)].forEach(effect=> effect())
 			}
+
+			// For arrays, also notify when an index changes
+			if (isArray && !isNaN(Number(key))){
+				// Length may have changed
+				if (target.__subscribers && target.__subscribers.has('length')){
+					[...target.__subscribers.get('length')].forEach(effect=> effect())
+				}
+			}
+
 			return true
 		},
 	})
@@ -117,5 +170,6 @@ const watch = (source, callback, options = {})=> {
 }
 
 export {
+	// don't expose reactive directly
 	ref, computed, watch,
 }
