@@ -1,0 +1,106 @@
+# Vue 3 Reactivity System Simulation
+
+A pure JavaScript implementation that simulates Vue 3's reactive API. This project demonstrates the core concepts behind Vue's reactivity system through progressive development, building from simple to complex features step by step.
+
+## 📋 Project Overview
+
+This project is designed as a learning journey, where each commit represents an evolution of functionality and API improvements. The implementation focuses on understanding and recreating the fundamental principles that power Vue 3's reactivity system.
+
+## 🚀 Features
+
+Currently implemented:
+
+- **ref()** - Creates reactive references to primitive values
+- **effect()** - Tracks dependencies and re-runs when reactive data changes  
+- **computed()** - Creates computed values that automatically update based on reactive dependencies
+
+## 🛠️ Implementation Details
+
+### ref(initialValue)
+Creates a reactive reference that can track dependencies and trigger updates when its value changes.
+
+```javascript
+const count = ref(0)
+console.log(count.value) // 0
+
+count.value = 1 // Triggers reactive updates
+```
+
+### effect(fn)
+Registers a function to be re-executed whenever its reactive dependencies change.
+
+```javascript
+const count = ref(0)
+
+effect(() => {
+  console.log(`Count is: ${count.value}`)
+})
+
+count.value = 1 // Logs: "Count is: 1"
+```
+
+### computed(getter)
+Creates a computed value that automatically recalculates when its dependencies change.
+
+```javascript
+const count = ref(0)
+const doubled = computed(() => count.value * 2)
+
+console.log(doubled.value) // 0
+count.value = 5
+console.log(doubled.value) // 10
+```
+
+## 🏗️ Architecture
+
+The reactivity system is built around these core concepts:
+
+1. **Dependency Tracking**: Uses a global `currentEffect` to track which effect is currently running
+2. **Subscription Model**: Each reactive reference maintains a set of subscriber effects
+3. **Automatic Updates**: When reactive data changes, all dependent effects are automatically re-executed
+
+## 📁 Project Structure
+
+```
+├── src/
+│   ├── vue.js          # Main reactivity implementation
+│   └── test.js         # Test cases and examples
+├── package.json        # Project configuration
+├── eslint.config.js    # ESLint configuration
+└── README.md           # Project documentation
+```
+
+## 🔧 Development
+
+This is a pure JavaScript project with no external runtime dependencies. 
+
+### Setup
+```bash
+npm install  # Install development dependencies (ESLint)
+```
+
+### Running Tests
+Test cases and examples are available in `src/test.js`. You can run the tests with:
+
+```bash
+node src/test.js
+```
+
+## 🎯 Learning Objectives
+
+This project helps understand:
+
+- How Vue 3's reactivity system works under the hood
+- Dependency tracking and effect scheduling
+- The relationship between reactive data and computed values
+- Modern JavaScript patterns for building reactive systems
+
+## 🔄 Progressive Development
+
+Each commit in this repository represents a step in the evolution of the reactivity system:
+
+- Start with basic reactive references
+- Add effect tracking and dependency collection
+- Implement computed values
+- Add more advanced features as the project progresses
+ 

@@ -1,8 +1,13 @@
 {
   "name": "reactivity",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
-  "scripts": {},
-  "devDependencies": {}
+  "scripts": {
+    "test": "node src/test.js"
+  },
+  "devDependencies": {
+    "eslint": "^9.36.0",
+    "eslint-config-janus": "^9.0.19"
+  }
 }
