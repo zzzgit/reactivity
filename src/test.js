@@ -83,11 +83,11 @@ describe('watch 监听器', ()=> {
 			callCount++
 		})
 
-		// 初始时 watch 会执行一次
-		assert(callCount >= 1, 'watch 回调应该被调用')
+		assert(callCount === 0, 'watch 回调默认不应该立即被调用')
 
 		myRef.value = 2
 		assert(watchedValue === 2, 'watch 应该监听到新值')
+		assert(callCount === 1, 'watch 回调应该被调用一次')
 	})
 
 	it('应该监听 computed 值变化', ()=> {

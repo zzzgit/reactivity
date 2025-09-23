@@ -48,12 +48,22 @@ const computed = (getter)=> {
 	}
 }
 
-const watch = (source, callback)=> {
+const watch = (source, callback, options = {})=> {
 	const getter = typeof source === 'function' ? source : ()=> source.value
+	const { immediate = false } = options
+
+	let oldValue
+	let isFirstRun = true
 
 	_effect(()=> {
 		const newValue = getter()
-		callback(newValue)
+
+		if (!isFirstRun || immediate){
+			callback(newValue, oldValue)
+		}
+
+		oldValue = newValue
+		isFirstRun = false
 	})
 }
 
