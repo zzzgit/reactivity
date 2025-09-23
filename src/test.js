@@ -3,77 +3,82 @@ import { assert, describe, it } from './utils.js'
 
 console.log('Starting reactive system tests...\n')
 
-// ref 功能测试
-describe('ref 响应式引用', ()=> {
-	it('应该创建一个响应式引用', ()=> {
+// ref feature test
+describe('ref', ()=> {
+	it('should create a reactive reference', ()=> {
 		const myRef = ref(10)
-		assert(myRef.value === 10, 'ref 初始值应该为 10')
+		assert(myRef.value === 10, 'ref initial value should be 10')
 	})
 
-	it('应该能够更新值', ()=> {
+	it('should be able to update the value', ()=> {
 		const myRef = ref(5)
 		myRef.value = 15
-		assert(myRef.value === 15, 'ref 值应该能够被更新')
+		assert(myRef.value === 15, 'ref value should be updatable')
 	})
 
-	it('应该触发副作用函数', ()=> {
+	it('should trigger side effects', ()=> {
 		const myRef = ref(0)
-		let effectCallCount = 0
-		let effectValue = 0
+		const myComputed = computed(()=> myRef.value * 2)
 
-		// 模拟 effect 功能（由于 _effect 没有导出，我们通过访问属性来触发）
-		const testEffect = ()=> {
-			effectCallCount++
-			effectValue = myRef.value
-		}
-
-		// 直接测试响应式行为
-		// 初始调用
-		testEffect()
-		assert(effectCallCount === 1, '副作用函数应该被调用一次')
-		assert(effectValue === 0, '副作用函数应该获取到正确的值')
+		assert(myComputed.value === 0, 'computed should get the initial value')
 
 		myRef.value = 10
-		assert(myRef.value === 10, '值应该被正确更新')
+		assert(myComputed.value === 20, 'computed should be updated when ref changes')
+	})
+
+	it('should handle objects', ()=> {
+		const myRef = ref({ a: 1, b: { c: 2 } })
+		const myComputed = computed(()=> myRef.value.a + myRef.value.b.c)
+
+		assert(myComputed.value === 3, 'computed should work with object properties')
+
+		myRef.value.a = 10
+		assert(myComputed.value === 12, 'computed should react to property changes')
+
+		myRef.value.b.c = 20
+		assert(myComputed.value === 30, 'computed should react to nested property changes')
+
+		myRef.value = { a: 1, b: { c: 2 } }
+		assert(myComputed.value === 3, 'computed should react to object reassignment')
 	})
 })
 
-// computed 功能测试
-describe('computed 计算属性', ()=> {
-	it('应该创建计算属性', ()=> {
+// computed feature test
+describe('computed', ()=> {
+	it('should create a computed property', ()=> {
 		const myRef = ref(5)
 		const myComputed = computed(()=> myRef.value * 2)
-		assert(myComputed.value === 10, '计算属性应该返回正确的计算结果')
+		assert(myComputed.value === 10, 'computed property should return the correct result')
 	})
 
-	it('应该响应依赖变化', ()=> {
+	it('should react to dependency changes', ()=> {
 		const myRef = ref(3)
 		const myComputed = computed(()=> myRef.value * 3)
 
-		assert(myComputed.value === 9, '初始计算值应该正确')
+		assert(myComputed.value === 9, 'initial computed value should be correct')
 
 		myRef.value = 4
-		assert(myComputed.value === 12, '依赖变化后计算值应该更新')
+		assert(myComputed.value === 12, 'computed value should update after dependency change')
 	})
 
-	it('应该支持复杂计算', ()=> {
+	it('should support complex computations', ()=> {
 		const a = ref(2)
 		const b = ref(3)
 		const sum = computed(()=> a.value + b.value)
 		const product = computed(()=> sum.value * 2)
 
-		assert(sum.value === 5, '和计算应该正确')
-		assert(product.value === 10, '乘积计算应该正确')
+		assert(sum.value === 5, 'sum computation should be correct')
+		assert(product.value === 10, 'product computation should be correct')
 
 		a.value = 5
-		assert(sum.value === 8, '更新后和计算应该正确')
-		assert(product.value === 16, '更新后乘积计算应该正确')
+		assert(sum.value === 8, 'sum should be correct after update')
+		assert(product.value === 16, 'product should be correct after update')
 	})
 })
 
-// watch 功能测试
-describe('watch 监听器', ()=> {
-	it('应该监听 ref 值变化', ()=> {
+// watch feature test
+describe('watch', ()=> {
+	it('should watch for ref value changes', ()=> {
 		const myRef = ref(1)
 		let watchedValue = null
 		let callCount = 0
@@ -83,14 +88,14 @@ describe('watch 监听器', ()=> {
 			callCount++
 		})
 
-		assert(callCount === 0, 'watch 回调默认不应该立即被调用')
+		assert(callCount === 0, 'watch callback should not be called immediately by default')
 
 		myRef.value = 2
-		assert(watchedValue === 2, 'watch 应该监听到新值')
-		assert(callCount === 1, 'watch 回调应该被调用一次')
+		assert(watchedValue === 2, 'watch should have picked up the new value')
+		assert(callCount === 1, 'watch callback should have been called once')
 	})
 
-	it('应该监听 computed 值变化', ()=> {
+	it('should watch for computed value changes', ()=> {
 		const myRef = ref(10)
 		const myComputed = computed(()=> myRef.value * 2)
 		let watchedValue = null
@@ -100,10 +105,10 @@ describe('watch 监听器', ()=> {
 		})
 
 		myRef.value = 15
-		assert(watchedValue === 30, 'watch 应该监听到 computed 的变化')
+		assert(watchedValue === 30, 'watch should have picked up the computed change')
 	})
 
-	it('应该支持函数形式的监听源', ()=> {
+	it('should support a function as a source', ()=> {
 		const myRef = ref(5)
 		let watchedValue = null
 
@@ -112,13 +117,13 @@ describe('watch 监听器', ()=> {
 		})
 
 		myRef.value = 8
-		assert(watchedValue === 16, 'watch 应该支持函数形式的监听源')
+		assert(watchedValue === 16, 'watch should support a function as a source')
 	})
 })
 
-// 综合测试
-describe('综合功能测试', ()=> {
-	it('应该支持复杂的响应式链', ()=> {
+// Combined feature test
+describe('Combined Features', ()=> {
+	it('should support complex reactive chains', ()=> {
 		const count = ref(1)
 		const doubled = computed(()=> count.value * 2)
 		const quadrupled = computed(()=> doubled.value * 2)
@@ -128,26 +133,29 @@ describe('综合功能测试', ()=> {
 			watchResult = newValue
 		})
 
-		assert(doubled.value === 2, '双倍计算应该正确')
-		assert(quadrupled.value === 4, '四倍计算应该正确')
+		assert(doubled.value === 2, 'doubled should be correct')
+		assert(quadrupled.value === 4, 'quadrupled should be correct')
 
 		count.value = 3
-		assert(doubled.value === 6, '更新后双倍计算应该正确')
-		assert(quadrupled.value === 12, '更新后四倍计算应该正确')
-		assert(watchResult === 12, 'watch 应该监听到最终结果')
+		assert(doubled.value === 6, 'doubled should be correct after update')
+		assert(quadrupled.value === 12, 'quadrupled should be correct after update')
+		assert(watchResult === 12, 'watch should have picked up the final result')
 	})
 
-	it('应该处理相同值的更新', ()=> {
+	it('should handle updates with the same value', ()=> {
 		const myRef = ref(10)
+		const myComputed = computed(()=> myRef.value * 2)
 
-		// 设置相同值
+		// Set the same value
 		myRef.value = 10
 
-		// 由于实现中有相同值检查，相同值更新不应该触发变化
-		assert(myRef.value === 10, '相同值更新后值应该保持不变')
+		// Since the implementation has a check for the same value, no change should be triggered
+		assert(myRef.value === 10, 'value should remain the same after same-value update')
+		assert(myComputed.value === 20, 'computed value should not change')
 
-		// 测试不同值的更新
+		// Test update with a different value
 		myRef.value = 20
-		assert(myRef.value === 20, '不同值更新应该正常工作')
+		assert(myRef.value === 20, 'different value update should work correctly')
+		assert(myComputed.value === 40, 'computed value should update with new value')
 	})
 })
