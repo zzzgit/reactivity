@@ -1,32 +1,7 @@
 import { computed, ref, watch } from './vue.js'
+import { assert, describe, it } from './utils.js'
 
-// 测试工具函数
-const assert = (condition, message)=> {
-	if (!condition){
-		throw new Error(`断言失败: ${message}`)
-	}
-	console.log(`✓ ${message}`)
-}
-
-const describe = (suiteName, testSuite)=> {
-	console.log(`\n=== ${suiteName} ===`)
-	try{
-		testSuite()
-		console.log(`✓ ${suiteName} 所有测试通过`)
-	}catch(error){
-		console.error(`✗ ${suiteName} 测试失败:`, error.message)
-	}
-}
-
-const it = (testName, testFn)=> {
-	try{
-		testFn()
-		console.log(`  ✓ ${testName}`)
-	}catch(error){
-		console.error(`  ✗ ${testName}: ${error.message}`)
-		throw error
-	}
-}
+console.log('Starting reactive system tests...\n')
 
 // ref 功能测试
 describe('ref 响应式引用', ()=> {
@@ -176,14 +151,3 @@ describe('综合功能测试', ()=> {
 		assert(myRef.value === 20, '不同值更新应该正常工作')
 	})
 })
-
-// 运行所有测试
-console.log('开始运行响应式系统测试...\n')
-
-try{
-	// 这里会执行所有的 describe 块
-	console.log('\n=== 测试总结 ===')
-	console.log('✓ 所有测试套件执行完毕')
-}catch(error){
-	console.error('测试执行过程中出现错误:', error)
-}
