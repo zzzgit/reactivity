@@ -1,6 +1,0 @@
-{
-    "git.blame.statusBarItem.enabled": false,
-    "git.blame.editorDecoration.enabled": true,
-    "git.blame.editorDecoration.template": "${authorName}, ${authorDateAgo}",
-    "github.copilot.nextEditSuggestions.enabled": true
-}

@@ -5,13 +5,7 @@
         "vscode": {
             "extensions": [
                 "dbaeumer.vscode-eslint"
-            ],
-            "settings": {
-                "eslint.format.enable": true,
-                "editor.defaultFormatter": "dbaeumer.vscode-eslint",
-                "editor.formatOnSave": true,
-                "workbench.colorTheme": "Default Dark Modern"
-            }
+            ]
         }
     },
     "forwardPorts": [

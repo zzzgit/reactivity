@@ -1,0 +1,10 @@
+{
+    "git.blame.statusBarItem.enabled": false,
+    "git.blame.editorDecoration.enabled": true,
+    "git.blame.editorDecoration.template": "${authorName}, ${authorDateAgo}",
+    "github.copilot.nextEditSuggestions.enabled": true,
+    "eslint.format.enable": true,
+    "editor.defaultFormatter": "dbaeumer.vscode-eslint",
+    "editor.formatOnSave": true,
+    "workbench.colorTheme": "Default Dark Modern"
+}
