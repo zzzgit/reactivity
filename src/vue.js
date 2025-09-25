@@ -1,11 +1,13 @@
+import { isNumericKey, isObject } from './utils.js'
+
 // For internal use only, never expose this function directly
 const reactive = (obj)=> {
-	if (typeof obj !== 'object' || obj === null){
+	if (!isObject(obj)){
 		return obj
 	}
 
 	for (const key in obj){
-		if (typeof obj[key] === 'object' && obj[key] !== null){
+		if (isObject(obj[key])){
 			obj[key] = reactive(obj[key])
 		}
 	}
@@ -24,7 +26,7 @@ const reactive = (obj)=> {
 					const triggeredEffects = new Set()
 
 					// Notify length change
-					if (target.__subscribers && target.__subscribers.has('length')){
+					if (target.__subscribers?.has('length')){
 						const lengthEffects = target.__subscribers.get('length')
 						lengthEffects.forEach((effect)=> {
 							triggeredEffects.add(effect)
@@ -43,7 +45,7 @@ const reactive = (obj)=> {
 							}
 
 							// Only trigger effects for numeric indices or specific properties
-							if (!isNaN(Number(propKey))){
+							if (isNumericKey(propKey)){
 								effects.forEach((effect)=> {
 									if (!triggeredEffects.has(effect)){
 										triggeredEffects.add(effect)
@@ -76,20 +78,20 @@ const reactive = (obj)=> {
 			const oldValue = target[key]
 			if (oldValue === value){ return true }
 
-			if (typeof value === 'object' && value !== null){
+			if (isObject(value)){
 				target[key] = reactive(value)
 			} else {
 				target[key] = value
 			}
 
-			if (target.__subscribers && target.__subscribers.has(key)){
+			if (target.__subscribers?.has(key)){
 				[...target.__subscribers.get(key)].forEach(effect=> effect())
 			}
 
 			// For arrays, also notify when an index changes
-			if (isArray && !isNaN(Number(key))){
+			if (isArray && isNumericKey(key)){
 				// Length may have changed
-				if (target.__subscribers && target.__subscribers.has('length')){
+				if (target.__subscribers?.has('length')){
 					[...target.__subscribers.get('length')].forEach(effect=> effect())
 				}
 			}
@@ -101,7 +103,7 @@ const reactive = (obj)=> {
 
 const ref = (initialValue)=> {
 	const subscribers = new Set()
-	const wrappedValue = typeof initialValue === 'object' && initialValue !== null ? reactive(initialValue) : initialValue
+	const wrappedValue = isObject(initialValue) ? reactive(initialValue) : initialValue
 
 	const refObject = {
 		_value: wrappedValue,
@@ -113,7 +115,7 @@ const ref = (initialValue)=> {
 		},
 		set value(newValue){
 			if (this._value === newValue){ return }
-			this._value = typeof newValue === 'object' && newValue !== null ? reactive(newValue) : newValue;
+			this._value = isObject(newValue) ? reactive(newValue) : newValue;
 			[...subscribers].forEach(effect=> effect())
 		},
 	}

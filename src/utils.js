@@ -1,3 +1,6 @@
+export const isObject = val=> val !== null && typeof val === 'object'
+export const isNumericKey = val=> !isNaN(Number(val))
+
 const assert = (condition, message)=> {
 	if (!condition){
 		throw new Error(`Assertion failed: ${message}`)
