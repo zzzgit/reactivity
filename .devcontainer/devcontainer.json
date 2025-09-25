@@ -6,6 +6,7 @@
             "extensions": [
                 "dbaeumer.vscode-eslint",
                 "editorconfig.editorconfig",
+                "formulahendry.code-runner",
                 "pflannery.vscode-versionlens"
             ]
         }
