@@ -1,5 +1,5 @@
 import { computed, ref, watch } from './vue.js'
-import { assert, describe, it } from './utils.js'
+import { assert, describe, it, printFailedTestSummary } from './utils.js'
 
 console.log('Starting reactive system tests...\n')
 
@@ -217,3 +217,5 @@ describe('ref with array', ()=> {
 		assert(watchedLength === 2, 'watch should pick up array length change')
 	})
 })
+
+printFailedTestSummary()
