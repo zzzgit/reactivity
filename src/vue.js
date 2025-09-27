@@ -50,6 +50,22 @@ const trigger = (target, key)=> {
 	}
 }
 
+const cleanupEffect = (effect)=> {
+	for (const [target, depsMap] of targetMap.entries()){
+		for (const [key, dep] of depsMap.entries()){
+			if (dep.has(effect)){
+				dep.delete(effect)
+				if (dep.size === 0){
+					depsMap.delete(key)
+				}
+				if (depsMap.size === 0){
+					targetMap.delete(target)
+				}
+			}
+		}
+	}
+}
+
 // For internal use only, never expose this function directly
 const reactive = (obj)=> {
 	if (!isObject(obj)){
@@ -228,6 +244,7 @@ const watch = (source, callback, options = {})=> {
 			currentEffect = null
 			try {
 				effectRunner.__active = false
+				cleanupEffect(effectRunner)
 			} finally {
 				currentEffect = originalEffect
 			}
