@@ -281,6 +281,34 @@ describe('ref with array', ()=> {
 		myArray.value.push(2)
 		assert(watchedLength === 2, 'watch should pick up array length change')
 	})
+
+	it('should support stopping a watch', ()=> {
+		const counter = ref(0)
+		let watchedValue = 0
+		let callCount = 0
+
+		// Set up a watcher with a callback that counts calls and tracks value
+		const stop = watch(counter, (newVal)=> {
+			watchedValue = newVal
+			callCount++
+		})
+
+		// Initial change should trigger the watcher
+		counter.value = 1
+		assert(callCount === 1, 'watch callback should be called after value change')
+		assert(watchedValue === 1, 'watched value should be updated')
+
+		// Stop watching
+		stop()
+
+		// This change should not trigger the watcher anymore
+		counter.value = 2
+		assert(callCount === 1, 'watch callback should not be called after stopping')
+		assert(watchedValue === 1, 'watched value should remain unchanged after stopping')
+
+		// Check that the reference itself still works normally
+		assert(counter.value === 2, 'ref should still work after watch is stopped')
+	})
 })
 
 printFailedTestSummary()

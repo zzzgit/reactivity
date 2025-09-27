@@ -14,7 +14,8 @@ const isReactive = (value)=> {
 }
 
 const track = (target, key)=> {
-	if (!currentEffect){
+	// Don't track if there's no current effect or if the effect is inactive
+	if (!currentEffect || currentEffect.__active === false){
 		return false
 	}
 	let depsMap = targetMap.get(target)
@@ -169,6 +170,9 @@ let currentEffect = null
 
 const _effect = (effectFn)=> {
 	const runEffect = ()=> {
+		if (runEffect.__active === false){
+			return
+		}
 		currentEffect = runEffect
 		try {
 			effectFn()
@@ -176,6 +180,7 @@ const _effect = (effectFn)=> {
 			currentEffect = null
 		}
 	}
+	runEffect.__active = true
 	runEffect()
 	return runEffect
 }
@@ -201,7 +206,7 @@ const watch = (source, callback, options = {})=> {
 	let oldValue
 	let isFirstRun = true
 
-	_effect(()=> {
+	const effectRunner = _effect(()=> {
 		const newValue = getter()
 
 		if (!isFirstRun || immediate){
@@ -211,6 +216,23 @@ const watch = (source, callback, options = {})=> {
 		oldValue = newValue
 		isFirstRun = false
 	})
+
+	return ()=> {
+		// Since we can't iterate through a WeakMap directly,
+		// we'll simply set the currentEffect to null when executing
+		// the effectRunner, which will prevent it from re-registering
+		// in dependency collections
+		if (effectRunner){
+			// We're using a null effect to prevent it from being tracked
+			const originalEffect = currentEffect
+			currentEffect = null
+			try {
+				effectRunner.__active = false
+			} finally {
+				currentEffect = originalEffect
+			}
+		}
+	}
 }
 
 export {
