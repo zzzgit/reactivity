@@ -1,104 +1,106 @@
 import { isNumericKey, isObject } from './utils.js'
 
+const track = (target, key)=> {
+	if (currentEffect){
+		if (!target.__subscribers){
+			target.__subscribers = new Map()
+		}
+		if (!target.__subscribers.has(key)){
+			target.__subscribers.set(key, new Set())
+		}
+		target.__subscribers.get(key).add(currentEffect)
+	}
+}
+
+const trigger = (target, key)=> {
+	if (target.__subscribers?.has(key)){
+		[...target.__subscribers.get(key)].forEach(effect=> effect())
+	}
+}
+
 // For internal use only, never expose this function directly
 const reactive = (obj)=> {
 	if (!isObject(obj)){
 		return obj
 	}
-
-	for (const key in obj){
+	// here's two ways to make nested objects reactive. One is to do it lazily in the get() trap below,
+	// the other is to do it eagerly here. This implementation does it eagerly.
+	// This means that nested objects are made reactive immediately, rather than when they are accessed.
+	// This can be more efficient if you know you'll be accessing those nested objects anyway.
+	// However, it also means that we create more Proxy objects upfront.
+	for (const key of Object.keys(obj)){
 		if (isObject(obj[key])){
 			obj[key] = reactive(obj[key])
 		}
 	}
 
 	const isArray = Array.isArray(obj)
-	const reactiveArrayMethods = ['push', 'pop', 'shift', 'unshift', 'splice', 'reverse', 'sort']
-
-	return new Proxy(obj, {
+	const indexAndLengthMethods = ['push', 'pop', 'shift', 'unshift', 'splice']
+	const indexOnlyMethods = ['reverse', 'sort']
+	const handler = {
 		get(target, key){
-			// Intercept array methods
+			const reactiveArrayMethods = [...indexAndLengthMethods, ...indexOnlyMethods]
+			const isIndexAndLength = indexAndLengthMethods.includes(key)
 			if (isArray && typeof target[key] === 'function' && reactiveArrayMethods.includes(key)){
 				return function(...args){
-					const result = Array.prototype[key].apply(target, args)
+					const result = Reflect.apply(Reflect.get(target, key), target, args)
+					if(!target.__subscribers){
+						return result
+					}
 
-					// Keep track of triggered effects to avoid duplicates
 					const triggeredEffects = new Set()
 
-					// Notify length change
-					if (target.__subscribers?.has('length')){
+					// For methods that can change length, notify length subscribers
+					if (isIndexAndLength){
 						const lengthEffects = target.__subscribers.get('length')
-						lengthEffects.forEach((effect)=> {
+						lengthEffects?.forEach((effect)=> {
 							triggeredEffects.add(effect)
 							effect()
 						})
 					}
 
-					// Only notify index-based subscribers when necessary
-					// This is more selective than re-running all effects
-					if (target.__subscribers){
-						// For numeric indices only
-						target.__subscribers.forEach((effects, propKey)=> {
-							// Already handled length subscribers
-							if (propKey === 'length'){
-								return
-							}
-
-							// Only trigger effects for numeric indices or specific properties
-							if (isNumericKey(propKey)){
-								effects.forEach((effect)=> {
-									if (!triggeredEffects.has(effect)){
-										triggeredEffects.add(effect)
-										effect()
-									}
-								})
-							}
-						})
-					}
-
+					// For numeric indices only
+					target.__subscribers.forEach((effects, propKey)=> {
+						if (isNumericKey(propKey)){
+							effects.forEach((effect)=> {
+								if (!triggeredEffects.has(effect)){
+									triggeredEffects.add(effect)
+									effect()
+								}
+							})
+						}
+					})
+					triggeredEffects.clear()
 					return result
 				}
 			}
 
-			const value = target[key]
-			// Track access
-			if (currentEffect){
-				// Create property-specific subscribers if they don't exist
-				if (!target.__subscribers){
-					target.__subscribers = new Map()
-				}
-				if (!target.__subscribers.has(key)){
-					target.__subscribers.set(key, new Set())
-				}
-				target.__subscribers.get(key).add(currentEffect)
-			}
+			const value = Reflect.get(target, key)
+			track(target, key)
 			return value
 		},
 		set(target, key, value){
 			const oldValue = target[key]
 			if (oldValue === value){ return true }
 
-			if (isObject(value)){
-				target[key] = reactive(value)
-			} else {
-				target[key] = value
-			}
+			target[key] = isObject(value) ? reactive(value) : value
 
-			if (target.__subscribers?.has(key)){
-				[...target.__subscribers.get(key)].forEach(effect=> effect())
-			}
+			trigger(target, key)
 
-			// For arrays, also notify when an index changes
+			// For arrays, there are some special cases to consider. 
+			// If we add an item at an index >= length, we need to notify length subscribers.
 			if (isArray && isNumericKey(key)){
-				// Length may have changed
-				if (target.__subscribers?.has('length')){
-					[...target.__subscribers.get('length')].forEach(effect=> effect())
+				if (Number(key) >= target.length){
+					if (target.__subscribers?.has('length')){
+						[...target.__subscribers.get('length')].forEach(effect=> effect())
+					}
 				}
 			}
 
 			return true
 		},
-	})
+	}
+	return new Proxy(obj, handler)
 }
 
 const ref = (initialValue)=> {
