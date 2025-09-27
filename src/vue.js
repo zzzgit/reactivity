@@ -38,7 +38,14 @@ const trigger = (target, key)=> {
 	}
 	const dep = depsMap.get(key)
 	if (dep){
-		[...dep].forEach(effect=> effect())
+		[...dep].forEach((effect)=> {
+			// Skip triggering the current effect to prevent infinite loops
+			// 這種情況到底應該throw error還是直接忽略掉？
+			// 目前的做法是忽略掉
+			if (effect !== currentEffect){
+				effect()
+			}
+		})
 	}
 }
 
