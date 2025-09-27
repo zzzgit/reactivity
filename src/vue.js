@@ -1,20 +1,33 @@
 import { isNumericKey, isObject } from './utils.js'
 
+const targetMap = new WeakMap()
+
 const track = (target, key)=> {
-	if (currentEffect){
-		if (!target.__subscribers){
-			target.__subscribers = new Map()
-		}
-		if (!target.__subscribers.has(key)){
-			target.__subscribers.set(key, new Set())
-		}
-		target.__subscribers.get(key).add(currentEffect)
+	if (!currentEffect){
+		return false
 	}
+	let depsMap = targetMap.get(target)
+	if (!depsMap){
+		depsMap = new Map()
+		targetMap.set(target, depsMap)
+	}
+
+	let dep = depsMap.get(key)
+	if (!dep){
+		dep = new Set()
+		depsMap.set(key, dep)
+	}
+	dep.add(currentEffect)
 }
 
 const trigger = (target, key)=> {
-	if (target.__subscribers?.has(key)){
-		[...target.__subscribers.get(key)].forEach(effect=> effect())
+	const depsMap = targetMap.get(target)
+	if (!depsMap){
+		return false
+	}
+	const dep = depsMap.get(key)
+	if (dep){
+		[...dep].forEach(effect=> effect())
 	}
 }
 
@@ -44,7 +57,8 @@ const reactive = (obj)=> {
 			if (isArray && typeof target[key] === 'function' && reactiveArrayMethods.includes(key)){
 				return function(...args){
 					const result = Reflect.apply(Reflect.get(target, key), target, args)
-					if(!target.__subscribers){
+					const depsMap = targetMap.get(target)
+					if(!depsMap){
 						return result
 					}
 
@@ -52,7 +66,7 @@ const reactive = (obj)=> {
 
 					// For methods that can change length, notify length subscribers
 					if (isIndexAndLength){
-						const lengthEffects = target.__subscribers.get('length')
+						const lengthEffects = depsMap.get('length')
 						lengthEffects?.forEach((effect)=> {
 							triggeredEffects.add(effect)
 							effect()
@@ -60,7 +74,7 @@ const reactive = (obj)=> {
 					}
 
 					// For numeric indices only
-					target.__subscribers.forEach((effects, propKey)=> {
+					depsMap.forEach((effects, propKey)=> {
 						if (isNumericKey(propKey)){
 							effects.forEach((effect)=> {
 								if (!triggeredEffects.has(effect)){
@@ -91,9 +105,7 @@ const reactive = (obj)=> {
 			// If we add an item at an index >= length, we need to notify length subscribers.
 			if (isArray && isNumericKey(key)){
 				if (Number(key) >= target.length){
-					if (target.__subscribers?.has('length')){
-						[...target.__subscribers.get('length')].forEach(effect=> effect())
-					}
+					trigger(target, 'length')
 				}
 			}
 
@@ -104,25 +116,21 @@ const reactive = (obj)=> {
 }
 
 const ref = (initialValue)=> {
-	const subscribers = new Set()
-	const wrappedValue = isObject(initialValue) ? reactive(initialValue) : initialValue
-
-	const refObject = {
-		_value: wrappedValue,
-		get value(){
-			if (currentEffect){
-				subscribers.add(currentEffect)
-			}
-			return this._value
-		},
-		set value(newValue){
-			if (this._value === newValue){ return }
-			this._value = isObject(newValue) ? reactive(newValue) : newValue;
-			[...subscribers].forEach(effect=> effect())
-		},
+	const raw = {
+		value: isObject(initialValue) ? reactive(initialValue) : initialValue,
 	}
 
-	return refObject
+	return {
+		get value(){
+			track(raw, 'value')
+			return raw.value
+		},
+		set value(newValue){
+			if (raw.value === newValue){ return }
+			raw.value = isObject(newValue) ? reactive(newValue) : newValue
+			trigger(raw, 'value')
+		},
+	}
 }
 
 let currentEffect = null
