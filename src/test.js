@@ -1,4 +1,4 @@
-import { computed, ref, watch } from './vue.js'
+import { computed, isRef, ref, watch } from './vue.js'
 import { assert, describe, it, printFailedTestSummary } from './utils.js'
 
 console.log('Starting reactive system tests...\n')
@@ -14,6 +14,31 @@ describe('ref', ()=> {
 		const myRef = ref(5)
 		myRef.value = 15
 		assert(myRef.value === 15, 'ref value should be updatable')
+	})
+
+	it('should handle refs of refs by unwrapping them', ()=> {
+		const obj = { a: 3 }
+		const wrapped = ref(obj)
+		const newWrapped = ref(wrapped)
+
+		// Test isRef function
+		assert(isRef(wrapped), 'isRef should identify ref objects')
+		assert(isRef(newWrapped), 'isRef should identify ref objects')
+		assert(!isRef(obj), 'isRef should return false for non-ref objects')
+		assert(!isRef(5), 'isRef should return false for primitives')
+
+		// newWrapped should be the same object as wrapped according to Vue 3 behavior
+		assert(newWrapped === wrapped, 'ref of a ref should return the original ref')
+		assert(newWrapped.value.a === 3, 'should access value directly without double unwrapping')
+
+		// Test updating the ref value
+		wrapped.value.a = 5
+		assert(newWrapped.value.a === 5, 'changes should be reflected in the ref')
+
+		// Test that they are truly the same object
+		newWrapped.value = { a: 7 }
+		assert(wrapped.value.a === 7, 'changing value through returned ref should update original ref')
+		assert(wrapped.value !== obj, 'original object should no longer be the referenced object')
 	})
 
 	it('should trigger side effects', ()=> {
@@ -118,6 +143,46 @@ describe('watch', ()=> {
 
 		myRef.value = 8
 		assert(watchedValue === 16, 'watch should support a function as a source')
+	})
+
+	it('should watch for reactive object property changes', ()=> {
+		const myReactive = ref({ a: 1, b: { c: 2 } })
+		let watchedValue = null
+		let oldValue = null
+		let callCount = 0
+
+		watch(()=> myReactive.value.a, (newValue, prevValue)=> {
+			watchedValue = newValue
+			oldValue = prevValue
+			callCount++
+		})
+
+		assert(callCount === 0, 'watch on object property should not be called immediately')
+
+		myReactive.value.a = 10
+		assert(watchedValue === 10, 'watch should pick up property change')
+		assert(oldValue === 1, 'watch should provide the old value')
+		assert(callCount === 1, 'watch callback should be called once for property change')
+	})
+
+	it('should watch for nested reactive object property changes', ()=> {
+		const myReactive = ref({ a: 1, b: { c: 2 } })
+		let watchedValue = null
+		let oldValue = null
+		let callCount = 0
+
+		watch(()=> myReactive.value.b.c, (newValue, prevValue)=> {
+			watchedValue = newValue
+			oldValue = prevValue
+			callCount++
+		})
+
+		assert(callCount === 0, 'watch on nested property should not be called immediately')
+
+		myReactive.value.b.c = 20
+		assert(watchedValue === 20, 'watch should pick up nested property change')
+		assert(oldValue === 2, 'watch should provide the old value for nested property')
+		assert(callCount === 1, 'watch callback should be called once for nested property change')
 	})
 })
 

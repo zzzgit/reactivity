@@ -2,6 +2,17 @@ import { isNumericKey, isObject } from './utils.js'
 
 const targetMap = new WeakMap()
 
+const IS_REACTIVE = '__v_isReactive'
+const IS_REF = '__v_isRef'
+
+const isRef = (value)=> {
+	return value && value[IS_REF] === true
+}
+
+const isReactive = (value)=> {
+	return value && value[IS_REACTIVE] === true
+}
+
 const track = (target, key)=> {
 	if (!currentEffect){
 		return false
@@ -36,6 +47,9 @@ const reactive = (obj)=> {
 	if (!isObject(obj)){
 		return obj
 	}
+	if (isReactive(obj)){
+		return obj
+	}
 	// here's two ways to make nested objects reactive. One is to do it lazily in the get() trap below,
 	// the other is to do it eagerly here. This implementation does it eagerly.
 	// This means that nested objects are made reactive immediately, rather than when they are accessed.
@@ -52,8 +66,12 @@ const reactive = (obj)=> {
 	const indexOnlyMethods = ['reverse', 'sort']
 	const handler = {
 		get(target, key){
+			if (key === IS_REACTIVE){
+				return true
+			}
 			const reactiveArrayMethods = [...indexAndLengthMethods, ...indexOnlyMethods]
 			const isIndexAndLength = indexAndLengthMethods.includes(key)
+			// For array, this part can be moved to another place
 			if (isArray && typeof target[key] === 'function' && reactiveArrayMethods.includes(key)){
 				return function(...args){
 					const result = Reflect.apply(Reflect.get(target, key), target, args)
@@ -116,11 +134,15 @@ const reactive = (obj)=> {
 }
 
 const ref = (initialValue)=> {
+	if (isRef(initialValue)){
+		return initialValue
+	}
+
 	const raw = {
 		value: isObject(initialValue) ? reactive(initialValue) : initialValue,
 	}
 
-	return {
+	const refObject = {
 		get value(){
 			track(raw, 'value')
 			return raw.value
@@ -130,7 +152,10 @@ const ref = (initialValue)=> {
 			raw.value = isObject(newValue) ? reactive(newValue) : newValue
 			trigger(raw, 'value')
 		},
+		[IS_REF]: true,
 	}
+
+	return refObject
 }
 
 let currentEffect = null
@@ -183,5 +208,5 @@ const watch = (source, callback, options = {})=> {
 
 export {
 	// don't expose reactive directly
-	ref, computed, watch,
+	ref, computed, watch, isRef,
 }
