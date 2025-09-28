@@ -86,17 +86,20 @@ const reactive = (obj)=> {
 	}
 
 	const isArray = Array.isArray(obj)
-	const indexAndLengthMethods = ['push', 'pop', 'shift', 'unshift', 'splice']
-	const indexOnlyMethods = ['reverse', 'sort']
 	const handler = {
 		get(target, key){
 			if (key === IS_REACTIVE){
 				return true
 			}
-			const reactiveArrayMethods = [...indexAndLengthMethods, ...indexOnlyMethods]
-			const isIndexAndLength = indexAndLengthMethods.includes(key)
+			const lengthMethods = ['shift', 'unshift', 'push', 'pop', 'splice']
+			const indexMethods = ['reverse', 'sort', 'shift', 'unshift']
+			const partialIndexMethods = ['fill', 'push', 'pop', 'splice', 'copyWithin']
+			const isLengthMethods = lengthMethods.includes(key)
+			const isFullIndexMethods = indexMethods.includes(key)
+			const isPartialIndexMethods = partialIndexMethods.includes(key)
+			const allArrayMethods = new Set([...lengthMethods, ...indexMethods, ...partialIndexMethods])
 			// For array, this part can be moved to another place
-			if (isArray && typeof target[key] === 'function' && reactiveArrayMethods.includes(key)){
+			if (isArray && typeof target[key] === 'function' && allArrayMethods.has(key)){
 				return function(...args){
 					const result = Reflect.apply(Reflect.get(target, key), target, args)
 					const depsMap = targetMap.get(target)
@@ -107,7 +110,7 @@ const reactive = (obj)=> {
 					const triggeredEffects = new Set()
 
 					// For methods that can change length, notify length subscribers
-					if (isIndexAndLength){
+					if (isLengthMethods){
 						const lengthEffects = depsMap.get('length')
 						lengthEffects?.forEach((effect)=> {
 							triggeredEffects.add(effect)
@@ -116,16 +119,38 @@ const reactive = (obj)=> {
 					}
 
 					// For numeric indices only
-					depsMap.forEach((effects, propKey)=> {
-						if (isNumericKey(propKey)){
-							effects.forEach((effect)=> {
+					const numericDeps = depsMap.filter((_effect, propKey)=> isNumericKey(propKey))
+					if(isFullIndexMethods){
+						numericDeps.forEach((effect)=> {
+							if (!triggeredEffects.has(effect)){
+								triggeredEffects.add(effect)
+								effect()
+							}
+						})
+					}
+					if(isPartialIndexMethods){
+						let startIndex = 0
+						if (key === 'push'){
+							startIndex = target.length - 1
+						} else if (key === 'pop'){
+							// never trigger anything, since pop only removes the last item
+							startIndex = target.length
+						} else if (key === 'splice'){
+							startIndex = args[0]
+						} else if (key === 'fill'){
+							startIndex = args[1] || 0
+						}else if (key === 'copyWithin'){
+							startIndex = args[0]
+						}
+						numericDeps.forEach((effect, propKey)=> {
+							if (Number(propKey) >= startIndex){
 								if (!triggeredEffects.has(effect)){
 									triggeredEffects.add(effect)
 									effect()
 								}
-							})
-						}
-					})
+							}
+						})
+					}
 					triggeredEffects.clear()
 					return result
 				}
