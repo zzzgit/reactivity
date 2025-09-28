@@ -50,22 +50,6 @@ const trigger = (target, key)=> {
 	}
 }
 
-const cleanupEffect = (effect)=> {
-	for (const [target, depsMap] of targetMap.entries()){
-		for (const [key, dep] of depsMap.entries()){
-			if (dep.has(effect)){
-				dep.delete(effect)
-				if (dep.size === 0){
-					depsMap.delete(key)
-				}
-				if (depsMap.size === 0){
-					targetMap.delete(target)
-				}
-			}
-		}
-	}
-}
-
 // For internal use only, never expose this function directly
 const reactive = (obj)=> {
 	if (!isObject(obj)){
@@ -119,13 +103,16 @@ const reactive = (obj)=> {
 					}
 
 					// For numeric indices only
-					const numericDeps = depsMap.filter((_effect, propKey)=> isNumericKey(propKey))
+					const numericDeps = [...depsMap.entries()]
+						.filter(([propKey])=> isNumericKey(propKey))
 					if(isFullIndexMethods){
-						numericDeps.forEach((effect)=> {
-							if (!triggeredEffects.has(effect)){
-								triggeredEffects.add(effect)
-								effect()
-							}
+						numericDeps.forEach(([_, dep])=> {
+							dep.forEach((effect)=> {
+								if (!triggeredEffects.has(effect)){
+									triggeredEffects.add(effect)
+									effect()
+								}
+							})
 						})
 					}
 					if(isPartialIndexMethods){
@@ -142,12 +129,14 @@ const reactive = (obj)=> {
 						}else if (key === 'copyWithin'){
 							startIndex = args[0]
 						}
-						numericDeps.forEach((effect, propKey)=> {
+						numericDeps.forEach(([propKey, dep])=> {
 							if (Number(propKey) >= startIndex){
-								if (!triggeredEffects.has(effect)){
-									triggeredEffects.add(effect)
-									effect()
-								}
+								dep.forEach((effect)=> {
+									if (!triggeredEffects.has(effect)){
+										triggeredEffects.add(effect)
+										effect()
+									}
+								})
 							}
 						})
 					}
@@ -269,7 +258,6 @@ const watch = (source, callback, options = {})=> {
 			currentEffect = null
 			try {
 				effectRunner.__active = false
-				cleanupEffect(effectRunner)
 			} finally {
 				currentEffect = originalEffect
 			}
