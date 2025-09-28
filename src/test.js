@@ -311,4 +311,116 @@ describe('ref with array', ()=> {
 	})
 })
 
+// watch with immediate option
+describe('watch with immediate option', ()=> {
+	it('should call callback immediately when immediate is true', ()=> {
+		const counter = ref(0)
+		let callCount = 0
+		let watchedValue = null
+
+		watch(counter, (newVal)=> {
+			callCount++
+			watchedValue = newVal
+		}, { immediate: true })
+
+		assert(callCount === 1, 'watch callback should be called immediately with immediate: true')
+		assert(watchedValue === 0, 'watch should receive initial value')
+
+		counter.value++
+		assert(callCount === 2, 'watch should still react to changes after immediate call')
+		assert(watchedValue === 1, 'watch should receive updated value')
+	})
+
+	it('should handle multiple immediate watchers', ()=> {
+		const person = ref({ name: 'Alice', age: 30 })
+		let nameWatchCount = 0
+		let ageWatchCount = 0
+
+		watch(()=> person.value.name, ()=> {
+			nameWatchCount++
+		}, { immediate: true })
+
+		watch(()=> person.value.age, ()=> {
+			ageWatchCount++
+		}, { immediate: true })
+
+		assert(nameWatchCount === 1, 'name watcher should be called immediately')
+		assert(ageWatchCount === 1, 'age watcher should be called immediately')
+
+		person.value.name = 'Bob'
+		person.value.age = 31
+
+		assert(nameWatchCount === 2, 'name watcher should be called after update')
+		assert(ageWatchCount === 2, 'age watcher should be called after update')
+	})
+})
+
+// Test for array methods
+describe('Array methods reactivity', ()=> {
+	it('should react to array shift method', ()=> {
+		const arr = ref([1, 2, 3])
+		const firstElement = computed(()=> arr.value[0])
+
+		assert(firstElement.value === 1, 'initial first element should be 1')
+
+		arr.value.shift()
+		assert(firstElement.value === 2, 'first element should be 2 after shift')
+		assert(arr.value.length === 2, 'array length should be updated')
+	})
+
+	it('should react to array unshift method', ()=> {
+		const arr = ref([1, 2])
+		const firstElement = computed(()=> arr.value[0])
+		const length = computed(()=> arr.value.length)
+
+		assert(firstElement.value === 1, 'initial first element should be 1')
+		assert(length.value === 2, 'initial length should be 2')
+
+		arr.value.unshift(0)
+		assert(firstElement.value === 0, 'first element should be 0 after unshift')
+		assert(length.value === 3, 'length should be updated after unshift')
+	})
+
+	it('should react to array reverse method', ()=> {
+		const arr = ref([1, 2, 3])
+		const elements = computed(()=> arr.value.join(','))
+
+		assert(elements.value === '1,2,3', 'initial order is correct')
+
+		arr.value.reverse()
+		assert(elements.value === '3,2,1', 'order should be reversed')
+	})
+
+	it('should react to array sort method', ()=> {
+		const arr = ref([3, 1, 2])
+		const elements = computed(()=> arr.value.join(','))
+
+		assert(elements.value === '3,1,2', 'initial order is correct')
+
+		arr.value.sort()
+		assert(elements.value === '1,2,3', 'array should be sorted')
+	})
+
+	it('should react to array fill method', ()=> {
+		const arr = ref([1, 2, 3, 4])
+		const elements = computed(()=> arr.value.join(','))
+
+		assert(elements.value === '1,2,3,4', 'initial values are correct')
+		// Fill positions 1 and 2 with 0
+		arr.value.fill(0, 1, 3)
+		assert(elements.value === '1,0,0,4', 'fill should modify specific elements')
+	})
+
+	it('should react to array copyWithin method', ()=> {
+		const arr = ref([1, 2, 3, 4, 5])
+		const elements = computed(()=> arr.value.join(','))
+
+		assert(elements.value === '1,2,3,4,5', 'initial values are correct')
+
+		// Copy values at positions 0-2 to position 2 (3->1, 4->2)
+		arr.value.copyWithin(2, 0, 2)
+		assert(elements.value === '1,2,1,2,5', 'copyWithin should modify the array reactively')
+	})
+})
+
 printFailedTestSummary()
