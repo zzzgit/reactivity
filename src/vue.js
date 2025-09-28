@@ -38,16 +38,21 @@ const trigger = (target, key)=> {
 		return false
 	}
 	const dep = depsMap.get(key)
-	if (dep){
-		[...dep].forEach((effect)=> {
-			// Skip triggering the current effect to prevent infinite loops
-			// 這種情況到底應該throw error還是直接忽略掉？
-			// 目前的做法是忽略掉
-			if (effect !== currentEffect){
-				effect()
-			}
-		})
+	triggerDeps(dep)
+}
+
+const triggerDeps = (dep)=> {
+	if (!dep){
+		return null
 	}
+	[...dep].forEach((effect)=> {
+		// Skip triggering the current effect to prevent infinite loops
+		// 這種情況到底應該throw error還是直接忽略掉？
+		// 目前的做法是忽略掉
+		if (effect !== currentEffect){
+			effect()
+		}
+	})
 }
 
 // For internal use only, never expose this function directly
@@ -171,29 +176,38 @@ const reactive = (obj)=> {
 	return new Proxy(obj, handler)
 }
 
+class RefImpl{
+
+	constructor(value){
+		this._rawValue = value
+		this._value = isObject(value) ? reactive(value) : value
+		// Store effects directly on the ref object
+		this.dep = new Set()
+		this[IS_REF] = true
+	}
+
+	get value(){
+		// Don't track if there's no current effect or if the effect is inactive
+		if (currentEffect && currentEffect.__active !== false){
+			this.dep.add(currentEffect)
+		}
+		return this._value
+	}
+
+	set value(newValue){
+		if (this._rawValue === newValue){ return }
+		this._rawValue = newValue
+		this._value = isObject(newValue) ? reactive(newValue) : newValue
+		triggerDeps(this.dep)
+	}
+
+}
+
 const ref = (initialValue)=> {
 	if (isRef(initialValue)){
 		return initialValue
 	}
-
-	const raw = {
-		value: isObject(initialValue) ? reactive(initialValue) : initialValue,
-	}
-
-	const refObject = {
-		get value(){
-			track(raw, 'value')
-			return raw.value
-		},
-		set value(newValue){
-			if (raw.value === newValue){ return }
-			raw.value = isObject(newValue) ? reactive(newValue) : newValue
-			trigger(raw, 'value')
-		},
-		[IS_REF]: true,
-	}
-
-	return refObject
+	return new RefImpl(initialValue)
 }
 
 let currentEffect = null
@@ -222,8 +236,10 @@ const computed = (getter)=> {
 		result.value = getter()
 	})
 
+	// Return a read-only computed ref
 	return {
 		get value(){
+			// Access the underlying ref to track dependencies
 			return result.value
 		},
 	}
@@ -248,12 +264,10 @@ const watch = (source, callback, options = {})=> {
 	})
 
 	return ()=> {
-		// Since we can't iterate through a WeakMap directly,
-		// we'll simply set the currentEffect to null when executing
-		// the effectRunner, which will prevent it from re-registering
-		// in dependency collections
+		// For both reactive and ref dependencies
 		if (effectRunner){
 			// We're using a null effect to prevent it from being tracked
+			// and setting __active = false to stop the effect
 			const originalEffect = currentEffect
 			currentEffect = null
 			try {
@@ -267,5 +281,5 @@ const watch = (source, callback, options = {})=> {
 
 export {
 	// don't expose reactive directly
-	ref, computed, watch, isRef,
+	ref, computed, watch, isRef, isReactive,
 }
